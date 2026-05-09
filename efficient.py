@@ -180,5 +180,5 @@ if __name__ == "__main__":
     mincost, input1_aligned, input2_aligned, mem_after = efficient_alignment(input1, input2)
     end_time    = time.time()
     time_taken  = (end_time - start_time) * 1000
-    mem_used    = mem_after
+    mem_used    = mem_after - mem_before
     write_output(output_file, mincost, input1_aligned, input2_aligned, time_taken, mem_used)
