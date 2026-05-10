@@ -4,8 +4,8 @@ import matplotlib.pyplot as plt
 PROBLEM_SIZES = [16, 64, 128, 256, 384, 512, 768, 1024, 1280, 1536, 2048, 2560, 3072, 3584, 3968]
 
 # Put paths to your basic and efficient output files here (in order of increasing problem size)
-BASIC_OUTPUTS = [f"basic_outputs/out{i}.txt" for i in range(1, 16)]
-EFFICIENT_OUTPUTS = [f"efficient_outputs/out{i}.txt" for i in range(1, 16)]
+BASIC_OUTPUTS = [f"Datapoints/output{i}_basic.txt" for i in range(1, 16)]
+EFFICIENT_OUTPUTS = [f"Datapoints/output{i}_efficient.txt" for i in range(1, 16)]
 
 
 def read_output(path):

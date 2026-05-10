@@ -30,102 +30,112 @@ def process_memory() -> int:
     return int(memory_info.rss / 1024)
 
 
-def nw_score_row(s: str, t: str) -> list[int]:
-    # only keep two rows at a time to save memory
-    prev = [j * DELTA for j in range(len(t) + 1)]
-
-    for i, sc in enumerate(s, 1):
-        curr = [i * DELTA] + [0] * len(t)
-        for j, tc in enumerate(t, 1):
-            curr[j] = min(
-                prev[j-1] + ALPHA[(sc, tc)],
-                prev[j]   + DELTA,
-                curr[j-1] + DELTA
-            )
-        prev = curr
-
-    return prev
-
-
-def divide_and_conquer_align(s: str, t: str) -> tuple[str, str]:
+def nw_last_row(s: str, t: str) -> list[int]:
     m, n = len(s), len(t)
-
-    if m == 0:
-        return '_' * n, t
-    if n == 0:
-        return s, '_' * m
-    if m == 1:
-        return _small_dp_align(s, t)
-    if n == 1:
-        return _small_dp_align(s, t)
-
-    mid = m // 2
-    top, bot = s[:mid], s[mid:]
-
-    fwd = nw_score_row(top, t)
-    bwd = nw_score_row(bot[::-1], t[::-1])
-
-    # find where to split t
-    split = min(range(n + 1), key=lambda j: fwd[j] + bwd[n - j])
-
-    l_s, l_t = divide_and_conquer_align(top, t[:split])
-    r_s, r_t = divide_and_conquer_align(bot, t[split:])
-
-    return l_s + r_s, l_t + r_t
-
-
-def _small_dp_align(s: str, t: str) -> tuple[str, str]:
+    row = [j * DELTA for j in range(n + 1)]
+ 
+    for i in range(1, m + 1):
+        next_row = [i * DELTA] + [0] * n
+        for j in range(1, n + 1):
+            opt1 = row[j - 1] + ALPHA[(s[i-1], t[j-1])]
+            opt2 = row[j] + DELTA
+            opt3 = next_row[j - 1] + DELTA
+            next_row[j] = min(opt1, opt2, opt3)
+        row = next_row
+ 
+    return row
+ 
+ 
+# Standard O(mn) DP with backtracking — only called on tiny subproblems
+def dp_align(s: str, t: str) -> tuple[str, str]:
     m, n = len(s), len(t)
-
-    # build the DP table
-    dp = [[0] * (n + 1) for _ in range(m + 1)]
+ 
+    # build table
+    table = [[0] * (n + 1) for _ in range(m + 1)]
     for i in range(m + 1):
-        dp[i][0] = i * DELTA
+        table[i][0] = i * DELTA
     for j in range(n + 1):
-        dp[0][j] = j * DELTA
-
+        table[0][j] = j * DELTA
+ 
     for i in range(1, m + 1):
         for j in range(1, n + 1):
-            dp[i][j] = min(
-                dp[i-1][j-1] + ALPHA[(s[i-1], t[j-1])],
-                dp[i-1][j]   + DELTA,
-                dp[i][j-1]   + DELTA
-            )
-
+            c1 = table[i-1][j-1] + ALPHA[(s[i-1], t[j-1])]
+            c2 = table[i-1][j] + DELTA
+            c3 = table[i][j-1] + DELTA
+            table[i][j] = min(c1, c2, c3)
+ 
     # traceback
     sa, ta = [], []
     i, j = m, n
     while i > 0 and j > 0:
-        if dp[i][j] == dp[i-1][j-1] + ALPHA[(s[i-1], t[j-1])]:
-            sa.append(s[i-1]); ta.append(t[j-1])
+        diag = table[i-1][j-1] + ALPHA[(s[i-1], t[j-1])]
+        up   = table[i-1][j] + DELTA
+        if table[i][j] == diag:
+            sa.append(s[i-1])
+            ta.append(t[j-1])
             i -= 1; j -= 1
-        elif dp[i][j] == dp[i-1][j] + DELTA:
-            sa.append(s[i-1]); ta.append('_')
+        elif table[i][j] == up:
+            sa.append(s[i-1])
+            ta.append('_')
             i -= 1
         else:
-            sa.append('_'); ta.append(t[j-1])
+            sa.append('_')
+            ta.append(t[j-1])
             j -= 1
-
+ 
     while i > 0:
         sa.append(s[i-1]); ta.append('_'); i -= 1
     while j > 0:
         sa.append('_'); ta.append(t[j-1]); j -= 1
-
+ 
     return ''.join(reversed(sa)), ''.join(reversed(ta))
-
-
+ 
+ 
+# Hirschberg's algorithm — divide s at midpoint, find best split in t
+def hirschberg(s: str, t: str) -> tuple[str, str]:
+    m, n = len(s), len(t)
+ 
+    # base cases
+    if m == 0:
+        return '_' * n, t
+    if n == 0:
+        return s, '_' * m
+    if m == 1 or n == 1:
+        return dp_align(s, t)
+ 
+    mid = m // 2
+ 
+    fwd = nw_last_row(s[:mid], t)
+    bwd = nw_last_row(s[mid:][::-1], t[::-1])
+ 
+    # find column in t that minimizes total cost across the cut
+    best_j = 0
+    best   = fwd[0] + bwd[n]
+    for j in range(1, n + 1):
+        val = fwd[j] + bwd[n - j]
+        if val < best:
+            best = val
+            best_j = j
+ 
+    # recurse on each half
+    s1, t1 = hirschberg(s[:mid],  t[:best_j])
+    s2, t2 = hirschberg(s[mid:],  t[best_j:])
+ 
+    return s1 + s2, t1 + t2
+ 
+ 
 def efficient_alignment(s: str, t: str) -> tuple[int, str, str, int]:
-    sa, ta = divide_and_conquer_align(s, t)
+    s_al, t_al = hirschberg(s, t)
     mem = process_memory()
-
-    cost = sum(
-        DELTA if '_' in (sc, tc) else ALPHA[(sc, tc)]
-        for sc, tc in zip(sa, ta)
-    )
-
-    return cost, sa, ta, mem
-
-
+ 
+    cost = 0
+    for a, b in zip(s_al, t_al):
+        if a == '_' or b == '_':
+            cost += DELTA
+        else:
+            cost += ALPHA[(a, b)]
+ 
+    return cost, s_al, t_al, mem
 
 # I/O helpers
 
